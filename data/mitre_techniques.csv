@@ -1,0 +1,5 @@
+behavior,technique_id,technique_name,tactic
+password_guessing,T1110.001,Brute Force: Password Guessing,Credential Access
+password_spraying,T1110.003,Brute Force: Password Spraying,Credential Access
+valid_account_after_bruteforce,T1078,Valid Accounts,Initial Access; Persistence
+ssh_remote_service,T1021.004,Remote Services: SSH,Lateral Movement
