@@ -1,0 +1,5 @@
+Jan 15 08:00:00 LabSZ sshd[7100]: Accepted publickey for vu from 192.0.2.50 port 51001 ssh2
+Jan 15 08:00:30 LabSZ sshd[7101]: Failed password for alice from 192.0.2.51 port 51002 ssh2
+Jan 15 08:00:40 LabSZ sshd[7102]: Accepted password for alice from 192.0.2.51 port 51003 ssh2
+Jan 15 08:15:00 LabSZ sshd[7103]: Received disconnect from 192.0.2.51: 11: disconnected by user
+Jan 15 12:00:00 LabSZ sshd[7104]: Accepted publickey for vu from 192.0.2.50 port 51004 ssh2
