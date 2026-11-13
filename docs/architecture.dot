@@ -1,0 +1,71 @@
+digraph SSHTriage {
+  rankdir=LR; newrank=true;
+  graph [fontname="Helvetica", pad=0.3, nodesep=0.5, ranksep=0.8,
+         label="SSH Log Triage Agent — Architecture", labelloc=t, fontsize=18];
+  node  [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="#555555"];
+  edge  [fontname="Helvetica", fontsize=9, color="#555555"];
+
+  subgraph cluster_input {
+    label="1. Inputs"; style="rounded,filled"; fillcolor="#EEF3FA"; color="#9DB4D3";
+    prompt [label="Persona: SSH-Triage\nprompts/system_prompt.txt"];
+    task   [label="Task prompt\n(investigate ≤ 5 IPs)"];
+    parse  [label="SSH log (Loghub / synthetic)\nSHA-256 check → parse_logs()"];
+  }
+
+  subgraph cluster_loop {
+    label="2. Reasoning loop — run_agent()  (max 12 iterations)"; style="rounded,filled"; fillcolor="#F4F1FA"; color="#B3A6D3";
+    llm  [label="LLM\ngpt-4o-mini, temp 0", fillcolor="#E4DCF5"];
+    disp [label="Tool dispatcher\n• allowlist (6 tools)\n• JSON-schema validation\n• required 'reason'", fillcolor="#E4DCF5"];
+    stop [label="Stop\n• final summary\n• iteration cap\n• API failure → rule fallback"];
+  }
+
+  subgraph cluster_mem {
+    label="3. Memory / state (per run)"; style="rounded,filled"; fillcolor="#EFF7EF"; color="#9CC79C";
+    state [label="SessionState\n• investigated IPs (cache)\n• drafted tickets\n• tool history\n• safeguard flags"];
+  }
+
+  tools [shape=plaintext, style="", label=<
+    <TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6" COLOR="#E0BE85" BGCOLOR="#FDF5E8">
+      <TR><TD BGCOLOR="#F6E2BE"><B>4. Tools</B> (no external actions)</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="ov">get_log_overview — totals, top IPs</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="ip">summarize_ip — counts; sanitize/flag usernames</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="rep">ip_reputation_lookup</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="mit">mitre_lookup</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="plt">plot_timeline</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="tk" BGCOLOR="#FBE7C6">draft_ticket — evidence-first · severity floor · MITRE filter</TD></TR>
+    </TABLE>>];
+
+  data [shape=plaintext, style="", label=<
+    <TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6" COLOR="#BBBBBB" BGCOLOR="#F5F5F5">
+      <TR><TD BGCOLOR="#E6E6E6"><B>Local data</B></TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="df">parsed log DataFrame</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="bl">ip_blocklist.csv (simulated)</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="mt">mitre_techniques.csv</TD></TR>
+      <TR><TD ALIGN="LEFT" PORT="png">logs/timeline_*.png</TD></TR>
+    </TABLE>>];
+
+  subgraph cluster_out {
+    label="5. Output and oversight"; style="rounded,filled"; fillcolor="#FBEDED"; color="#D9A0A0";
+    gate  [label="Human approval gate\nblock_ip / escalate / high+\n→ pending_human_approval"];
+    table [label="Ticket table\n(IPs redacted)"];
+    audit [label="Audit log\nlogs/audit_<id>.jsonl"];
+  }
+
+  prompt -> llm; task -> llm;
+  parse -> data:df [style=dashed];
+  llm -> disp [label="tool calls"];
+  disp -> llm [label="results\n(untrusted data labeled)"];
+  disp -> tools:ov [label="validated call"];
+  tools:ov -> data:df [style=dotted]; tools:ip -> data:df [style=dotted];
+  tools:rep -> data:bl [style=dotted]; tools:mit -> data:mt [style=dotted]; tools:plt -> data:png [style=dotted];
+  tools:ip -> state [style=dashed, label="cache"];
+  tools:tk -> state [style=dashed, label="tickets"];
+  state -> llm [style=dashed, label="state summary\neach iteration"];
+  llm -> stop [label="no tool call"];
+  stop -> gate; gate -> table;
+  disp -> audit [style=dotted, label="every call"];
+  gate -> audit [style=dotted];
+
+  {rank=same; llm; state;}
+  {rank=same; disp; stop;}
+}
